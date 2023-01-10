@@ -72,7 +72,7 @@ namespace Emby.Server.Implementations.ScheduledTasks.Tasks
         /// <inheritdoc />
         public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Optimizing and vacuuming jellyfin.db...");
+            _logger.LogInformation("Restarting WAL checkpoint & Optimizing jellyfin.db (BASIC)...");
 
             try
             {
@@ -81,8 +81,9 @@ namespace Emby.Server.Implementations.ScheduledTasks.Tasks
                 {
                     if (context.Database.IsSqlite())
                     {
-                        await context.Database.ExecuteSqlRawAsync("PRAGMA optimize", cancellationToken).ConfigureAwait(false);
-                        await context.Database.ExecuteSqlRawAsync("VACUUM", cancellationToken).ConfigureAwait(false);
+                        await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(RESTART);", cancellationToken).ConfigureAwait(false);
+                        await context.Database.ExecuteSqlRawAsync("PRAGMA quick_check(1);", cancellationToken).ConfigureAwait(false);
+                        await context.Database.ExecuteSqlRawAsync("PRAGMA analysis_limit=1024; PRAGMA optimize; REINDEX;", cancellationToken).ConfigureAwait(false);
                         _logger.LogInformation("jellyfin.db optimized successfully!");
                     }
                     else
